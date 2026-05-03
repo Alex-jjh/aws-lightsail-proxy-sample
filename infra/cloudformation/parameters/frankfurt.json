@@ -1,0 +1,9 @@
+[
+  { "ParameterKey": "InstanceName", "ParameterValue": "proxy-frankfurt" },
+  { "ParameterKey": "BundleId", "ParameterValue": "nano_3_2" },
+  { "ParameterKey": "BlueprintId", "ParameterValue": "ubuntu_22_04" },
+  { "ParameterKey": "AvailabilityZoneSuffix", "ParameterValue": "a" },
+  { "ParameterKey": "PanelPort", "ParameterValue": "18918" },
+  { "ParameterKey": "ProxyPort", "ParameterValue": "443" },
+  { "ParameterKey": "SSBackupPort", "ParameterValue": "8388" }
+]

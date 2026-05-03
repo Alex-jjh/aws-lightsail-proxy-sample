@@ -1,0 +1,24 @@
+# ============================================================
+# Example Terraform Variables
+# 复制此文件为 terraform.tfvars 并修改:
+#   cp terraform.tfvars.example terraform.tfvars
+# ============================================================
+
+aws_region    = "ap-northeast-1" # Tokyo - 推荐亚洲用户
+instance_name = "proxy-server"
+bundle_id     = "nano_3_2" # $5/月, 1GB RAM, 2TB 流量
+
+# Lightsail 控制台创建的 SSH key pair 名称
+# 留空则使用默认 key（需要从 Lightsail 控制台下载）
+key_pair_name = ""
+
+panel_port     = 18918 # 面板端口（非标准端口更安全）
+proxy_port     = 443   # 代理端口（443 避免被公司防火墙拦截）
+ss_backup_port = 8388  # Shadowsocks 备用端口
+
+tags = {
+  Project     = "lightsail-proxy"
+  ManagedBy   = "terraform"
+  Environment = "personal"
+  Owner       = "your-name"
+}

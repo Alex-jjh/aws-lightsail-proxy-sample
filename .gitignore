@@ -1,0 +1,78 @@
+# ============================================================
+# OS / Editor
+# ============================================================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# ============================================================
+# Secrets & Credentials
+# ============================================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.env
+.env.local
+*-credentials.json
+proxy-credentials.json
+
+# ============================================================
+# Terraform
+# ============================================================
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Crash log files
+crash.log
+crash.*.log
+
+# User-specific tfvars (may contain secrets)
+*.auto.tfvars
+*.auto.tfvars.json
+terraform.tfvars
+terraform.tfvars.json
+
+# Keep example files
+!terraform.tfvars.example
+
+# Lock file decision:
+# We commit .terraform.lock.hcl so all users get the same providers.
+# Uncomment below if your team prefers not to commit it.
+# .terraform.lock.hcl
+
+# Plan files
+*.tfplan
+tfplan
+
+# ============================================================
+# CloudFormation
+# ============================================================
+packaged-template.yaml
+deploy-output.json
+
+# ============================================================
+# Build artifacts
+# ============================================================
+build/
+dist/
+*.log
+
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/

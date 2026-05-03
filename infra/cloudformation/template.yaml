@@ -1,0 +1,200 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Lightsail Proxy Server - 3x-ui 代理服务器
+  包含 Lightsail Instance + Static IP + 防火墙规则
+
+# ============================================================
+# Parameters / 参数
+# ============================================================
+Parameters:
+
+  InstanceName:
+    Type: String
+    Default: proxy-server
+    Description: Name for the Lightsail instance
+    AllowedPattern: '^[a-zA-Z0-9-]+$'
+    MinLength: 1
+    MaxLength: 63
+
+  BundleId:
+    Type: String
+    Default: nano_3_2
+    AllowedValues:
+      - nano_3_0
+      - nano_3_2
+      - micro_3_0
+      - small_3_0
+    Description: 'Lightsail plan. nano_3_2 = $5/month (1GB RAM, 1vCPU, 2TB transfer)'
+
+  BlueprintId:
+    Type: String
+    Default: ubuntu_22_04
+    Description: OS blueprint. Ubuntu 22.04 LTS recommended for 3x-ui.
+
+  AvailabilityZoneSuffix:
+    Type: String
+    Default: a
+    AllowedValues: [a, b, c, d]
+    Description: AZ suffix (full AZ = region + suffix)
+
+  KeyPairName:
+    Type: String
+    Default: ''
+    Description: 'Existing Lightsail key pair name (leave empty for default key)'
+
+  PanelPort:
+    Type: Number
+    Default: 18918
+    MinValue: 1024
+    MaxValue: 65535
+    Description: 3x-ui panel access port (non-standard for security)
+
+  ProxyPort:
+    Type: Number
+    Default: 443
+    Description: Main proxy listening port (443 bypasses corporate firewalls)
+
+  SSBackupPort:
+    Type: Number
+    Default: 8388
+    Description: Shadowsocks backup proxy port
+
+# ============================================================
+# Conditions
+# ============================================================
+Conditions:
+  HasKeyPair: !Not [!Equals [!Ref KeyPairName, '']]
+
+# ============================================================
+# Resources
+# ============================================================
+Resources:
+
+  # ----------------------------------------------------------
+  # Lightsail Instance
+  # ----------------------------------------------------------
+  ProxyInstance:
+    Type: AWS::Lightsail::Instance
+    Properties:
+      InstanceName: !Ref InstanceName
+      AvailabilityZone: !Sub '${AWS::Region}${AvailabilityZoneSuffix}'
+      BlueprintId: !Ref BlueprintId
+      BundleId: !Ref BundleId
+      KeyPairName: !If [HasKeyPair, !Ref KeyPairName, !Ref 'AWS::NoValue']
+      # ------------------------------------------------------
+      # Firewall rules / 防火墙规则
+      # ⚠️ Networking.Ports replaces ALL existing port rules.
+      #    必须把所有需要的端口一次列全（含 SSH，否则无法登录）
+      # ------------------------------------------------------
+      Networking:
+        Ports:
+          - AccessDirection: inbound
+            Protocol: tcp
+            FromPort: 22
+            ToPort: 22
+          - AccessDirection: inbound
+            Protocol: tcp
+            FromPort: 80
+            ToPort: 80
+          - AccessDirection: inbound
+            Protocol: tcp
+            FromPort: !Ref ProxyPort
+            ToPort: !Ref ProxyPort
+          - AccessDirection: inbound
+            Protocol: tcp
+            FromPort: !Ref PanelPort
+            ToPort: !Ref PanelPort
+          - AccessDirection: inbound
+            Protocol: tcp
+            FromPort: !Ref SSBackupPort
+            ToPort: !Ref SSBackupPort
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # ============================================================
+          # Lightsail Instance Bootstrap (CloudFormation UserData)
+          # ============================================================
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+
+          LOG_FILE="/var/log/proxy-bootstrap.log"
+          exec > >(tee -a "${!LOG_FILE}") 2>&1
+
+          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] [INFO] Bootstrap started"
+
+          # 1. Update system / 更新系统
+          apt-get update -y
+          apt-get upgrade -y
+
+          # 2. Install utilities / 安装依赖
+          apt-get install -y sqlite3 curl jq git ca-certificates ufw
+
+          # 3. Download 3x-ui install script
+          # ⚠️ DO NOT use `sudo bash <(curl ...)` — fails with /dev/fd/63 error
+          curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh -o /tmp/install-3xui.sh
+          chmod +x /tmp/install-3xui.sh
+
+          # 4. Prepare dirs
+          mkdir -p /opt/scripts /opt/client
+
+          # 5. Marker file
+          cat > /opt/proxy-bootstrap-complete <<EOF
+          PANEL_PORT=${PanelPort}
+          BOOTSTRAP_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          BOOTSTRAP_VERSION=1.0
+          EOF
+
+          echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] [INFO] Bootstrap complete"
+      Tags:
+        - Key: Project
+          Value: lightsail-proxy
+        - Key: ManagedBy
+          Value: cloudformation
+
+  # ----------------------------------------------------------
+  # Static IP (免费，绑定实例时)
+  # ----------------------------------------------------------
+  ProxyStaticIp:
+    Type: AWS::Lightsail::StaticIp
+    Properties:
+      StaticIpName: !Sub '${InstanceName}-static-ip'
+      AttachedTo: !Ref ProxyInstance
+
+# ============================================================
+# Outputs
+# ============================================================
+Outputs:
+
+  StaticIpAddress:
+    Description: Static public IP address
+    Value: !GetAtt ProxyStaticIp.IpAddress
+    Export:
+      Name: !Sub '${AWS::StackName}-StaticIp'
+
+  InstanceName:
+    Description: Lightsail instance name
+    Value: !Ref ProxyInstance
+
+  PanelURL:
+    Description: 3x-ui panel URL (HTTP, before SSL setup)
+    Value: !Sub 'http://${ProxyStaticIp.IpAddress}:${PanelPort}/'
+
+  PanelURLHTTPS:
+    Description: 3x-ui panel URL (HTTPS, after SSL setup)
+    Value: !Sub 'https://${ProxyStaticIp.IpAddress}:${PanelPort}/'
+
+  SSHCommand:
+    Description: SSH command to connect to the instance
+    Value: !Sub 'ssh -i <your-key.pem> ubuntu@${ProxyStaticIp.IpAddress}'
+
+  ProxyPort:
+    Description: Main proxy port (VLESS Reality)
+    Value: !Ref ProxyPort
+
+  SSBackupPort:
+    Description: Shadowsocks backup port
+    Value: !Ref SSBackupPort
+
+  Region:
+    Description: AWS region
+    Value: !Ref 'AWS::Region'
