@@ -4,20 +4,33 @@
 # ============================================================
 
 variable "aws_region" {
-  description = "AWS region to deploy Lightsail instance. Avoid US regions - IPs get flagged easily."
+  description = <<-EOT
+    AWS region to deploy Lightsail instance.
+    部署 Lightsail 实例的 AWS 区域。
+
+    Recommended (clean IP ranges, lower latency for target users):
+    推荐区域（IP 段干净、目标用户延迟低）:
+      - ap-northeast-1 (Tokyo)
+      - ap-southeast-1 (Singapore)
+      - eu-central-1   (Frankfurt)
+      - ap-south-1     (Mumbai)
+
+    Avoid US regions — IPs get flagged by streaming services.
+    避开美国区 —— IP 容易被流媒体服务风控。
+
+    Any region that supports Lightsail is accepted; non-recommended
+    regions only trigger a warning, not a hard error.
+    接受任何支持 Lightsail 的区域；非推荐区仅警告，不阻止。
+  EOT
   type        = string
   default     = "ap-northeast-1"
 
   validation {
-    condition = contains([
-      "ap-northeast-1", # Tokyo
-      "ap-southeast-1", # Singapore
-      "eu-central-1",   # Frankfurt
-      "ap-south-1",     # Mumbai
-      "sa-east-1",      # São Paulo
-      "eu-west-1",      # Ireland
-    ], var.aws_region)
-    error_message = "Choose a recommended region. Avoid US regions (us-east-1, us-west-2, etc.)."
+    # Basic format check: e.g. "ap-northeast-1". Keeps obvious typos out
+    # but does not restrict to a hardcoded list.
+    # 基础格式校验，防低级拼写错误，不限制到固定列表。
+    condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", var.aws_region))
+    error_message = "aws_region must be a valid AWS region ID, e.g. ap-northeast-1."
   }
 }
 
@@ -34,13 +47,30 @@ variable "blueprint_id" {
 }
 
 variable "bundle_id" {
-  description = "Lightsail plan. nano_3_2 = $5/month (1GB RAM, 1vCPU, 2TB transfer)"
+  description = <<-EOT
+    Lightsail plan / 套餐.
+
+    Common options / 常用选项:
+      - nano_3_0   : $3.50/mo, 512MB RAM, 1 vCPU, 1TB transfer
+      - nano_3_2   : $5/mo,    1GB RAM,   1 vCPU, 2TB transfer  (recommended / 推荐)
+      - micro_3_0  : $10/mo,   2GB RAM,   2 vCPU, 3TB transfer
+      - small_3_0  : $20/mo,   2GB RAM,   2 vCPU, 4TB transfer
+      - medium_3_0 : $40/mo,   4GB RAM,   2 vCPU, 5TB transfer
+
+    Full list / 完整列表:
+      aws lightsail get-bundles --region <region>
+
+    Any valid Lightsail bundle_id is accepted.
+    接受任何有效的 Lightsail bundle_id。
+  EOT
   type        = string
   default     = "nano_3_2"
 
   validation {
-    condition     = contains(["nano_3_0", "nano_3_2", "micro_3_0", "small_3_0"], var.bundle_id)
-    error_message = "Choose a valid Lightsail bundle. nano_3_2 ($5/mo) recommended."
+    # Lightsail bundle IDs follow pattern like nano_3_2, micro_3_0, etc.
+    # Lightsail bundle ID 的命名规律。
+    condition     = can(regex("^[a-z]+_[0-9]+_[0-9]+$", var.bundle_id))
+    error_message = "bundle_id must match Lightsail bundle format, e.g. nano_3_2, micro_3_0."
   }
 }
 

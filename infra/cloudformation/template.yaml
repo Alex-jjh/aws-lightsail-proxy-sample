@@ -19,17 +19,20 @@ Parameters:
   BundleId:
     Type: String
     Default: nano_3_2
-    AllowedValues:
-      - nano_3_0
-      - nano_3_2
-      - micro_3_0
-      - small_3_0
-    Description: 'Lightsail plan. nano_3_2 = $5/month (1GB RAM, 1vCPU, 2TB transfer)'
+    AllowedPattern: '^[a-z]+_[0-9]+_[0-9]+$'
+    Description: >
+      Lightsail plan / Lightsail 套餐.
+      Common: nano_3_0 ($3.50), nano_3_2 ($5, recommended),
+      micro_3_0 ($10), small_3_0 ($20), medium_3_0 ($40).
+      Full list: aws lightsail get-bundles --region <region>
 
   BlueprintId:
     Type: String
     Default: ubuntu_22_04
-    Description: OS blueprint. Ubuntu 22.04 LTS recommended for 3x-ui.
+    Description: >
+      OS blueprint / 操作系统镜像.
+      Common: ubuntu_22_04 (recommended), ubuntu_24_04, debian_12.
+      Full list: aws lightsail get-blueprints --region <region>
 
   AvailabilityZoneSuffix:
     Type: String
